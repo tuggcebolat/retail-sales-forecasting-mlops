@@ -1,0 +1,27 @@
+
+# Data Analysis
+pandas
+numpy
+matplotlib
+seaborn
+
+# Data Collection
+requests
+
+# Machine Learning
+scikit-learn
+statsmodels
+xgboost
+
+# Experiment Tracking
+mlflow
+
+# Testing
+pytest
+
+# Environment
+python-dotenv
+
+# Notebook
+jupyter
+ipykernel
