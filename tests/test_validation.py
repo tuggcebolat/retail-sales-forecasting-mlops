@@ -76,3 +76,16 @@ def test_missing_month():
     # Tarih frekansı düzensiz olduğu için hata bekliyoruz.
     with pytest.raises(ValueError):
         validate_sales_data(df)
+
+def test_negative_sales():
+    #Negatif satış değerinin reddedildiğini test ediyoruz.
+    df = pd.DataFrame({
+        "observation_date": pd.to_datetime([
+            "2026-01-01",
+            "2026-02-01"
+        ]),
+        "sales": [100, -50]
+    })
+    with pytest.raises(ValueError,
+                      match="Satış sütununda negatif değerler var"):
+        validate_sales_data(df)
