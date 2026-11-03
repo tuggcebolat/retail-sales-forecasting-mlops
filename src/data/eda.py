@@ -2,6 +2,9 @@ import pandas as pd
  #Grafik oluşturmak için matplotlib kütüphanesini içe aktarıyoruz.
 import matplotlib.pyplot as plt
 
+#Zaman serisi ayrıştırması için statsmodels kütüphanesini içe aktarıyoruz.
+from statsmodels.tsa.seasonal import seasonal_decompose
+
 #Satış verisinin temel istatistiklerini ve dağılımını analiz ediyoruz.
 def analyze_sales_data(df: pd.DataFrame) -> pd.DataFrame:
     
@@ -107,3 +110,24 @@ def analyze_monthly_seasonality(
 
     # Aylık mevsimsellik profilini döndürüyoruz.
     return monthly_profile
+
+def plot_seasonal_decomposition(df):
+    #Satış sütununu seçiyoruz.
+    sales_series = df["sales"]
+    
+    #Aylık veriyi 12 aylık mevsimsellik ile ayrıştırıyoruz.
+    
+    decomposition = seasonal_decompose(sales_series, 
+                                       model="multiplicative",
+                                       period=12)
+    #Dört ayrı grafik alanı oluşturuyoruz.
+    fig = decomposition.plot()
+    
+    #grafiğin boyutunu ayarlıyoruz.
+    fig.set_size_inches(12, 9)
+    
+    #Grafik elemanlarını düzenliyoruz.
+    plt.tight_layout()
+    
+    #Grafiği ekranda gösteriyoruz.
+    plt.show()

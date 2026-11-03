@@ -1,4 +1,6 @@
 #Veri çekme fonksiyonunu çağırıyoruz.
+import pandas as pd
+
 from src.data.ingestion import load_sales_data
 
 #Veri doğrulama fonksiyonunu çağırıyoruz.
@@ -8,6 +10,14 @@ from src.data.validation import validate_sales_data
 from src.data.preprocessing import preprocess_sales_data
 
 from src.data.eda import analyze_sales_data, plot_sales_trend, plot_rolling_mean ,analyze_monthly_seasonality
+
+#Trend, mevsimsellik ve istatistikleri analiz eden fonksiyonları çağırıyoruz.
+from src.data.eda import plot_seasonal_decomposition
+
+from src.models.baseline import seasonal_naive_forecast
+
+#metrikleri hesaplayan fonksiyonları çağırıyoruz.
+from src.models.evaluation import evaluate_forecast 
 
 #Pipeline ana fonksiyonunu tanımlıyoruz.
 def main():
@@ -55,6 +65,36 @@ def main():
     print("\nAylık mevsimsellik profili:")
     print(monthly_profile.round(3))
     
+    #trend, mevsimsellik ve kalıntıları görselleştiriyoruz.
+    plot_seasonal_decomposition(processed_df)
+    
+    #Son 12 ayın satış verisini kullanarak gelecek 12 ay için tahminler yapıyoruz.
+    test_df= processed_df.iloc[-12:]
+    
+    #Daha eski veriyi eğitim seti olarak kullanıyoruz.
+    train_df = processed_df.iloc[:-12]
+    
+    #Eğitim verisini kullanarak gelecek 12 ay için tahminler yapıyoruz.
+    predictions = seasonal_naive_forecast(train_df, horizon=12)
+    
+    #Gerçek satışlarla tahminleri karşılaştırmak için bir DataFrame oluşturuyoruz.
+    comparison = pd.DataFrame({
+        "Actual Sales": test_df["sales"],
+        "Predicted Sales": predictions
+    })
+    #Karşılaştırma tablosunu terminalde gösteriyoruz.
+    print("\nGerçek ve Tahmin Edilen Satışlar:")
+    print(comparison)
+    
+    #Model performans metriklerini hesaplıyoruz.
+    metrics = evaluate_forecast(
+        comparison["Actual Sales"],
+        comparison["Predicted Sales"]
+    )
+    #Sonuçları terminalde gösteriyoruz.
+    print("\nModel Performans Metrikleri:")
+    for metric, value in metrics.items():
+        print(f"{metric}: {value:.4f}")
     
     
 #Dosya doğrudan çalıştırıldığında main fonksiyonunu çağırıyoruz.
