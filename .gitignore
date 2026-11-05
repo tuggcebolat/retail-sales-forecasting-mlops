@@ -17,5 +17,5 @@ venv/
 # Local data and model artifacts
 data/raw/
 data/processed/
-models/
+/models/
 mlruns/
