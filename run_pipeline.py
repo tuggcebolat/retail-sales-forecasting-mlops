@@ -19,6 +19,8 @@ from src.models.baseline import seasonal_naive_forecast
 #metrikleri hesaplayan fonksiyonları çağırıyoruz.
 from src.models.evaluation import evaluate_forecast 
 
+from src.models.backtesting import rolling_backtest
+
 #Pipeline ana fonksiyonunu tanımlıyoruz.
 def main():
     #FRED üzerindeki satış verisini çekiyoruz.
@@ -95,6 +97,28 @@ def main():
     print("\nModel Performans Metrikleri:")
     for metric, value in metrics.items():
         print(f"{metric}: {value:.4f}")
+    
+    
+# Modelimizi farklı dönemlerde değerlendiriyoruz.
+    backtest_results = rolling_backtest(
+        processed_df,
+        initial_train_size=312,
+        horizon=6,
+        step=6
+    )
+
+    # Dönemlere göre hata metriklerini gösteriyoruz.
+    print("\nRolling Backtesting Sonuçları:")
+    print(backtest_results.to_string(index=False))
+
+    # Tüm değerlendirme dönemlerinin ortalama metrikleri.
+    print("\nOrtalama Backtesting Performansı:")
+    print(
+        backtest_results[["MAE", "RMSE", "sMAPE"]]
+        .mean()
+        .round(2)
+)
+
     
     
 #Dosya doğrudan çalıştırıldığında main fonksiyonunu çağırıyoruz.
