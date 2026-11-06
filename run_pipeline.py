@@ -34,7 +34,9 @@ from src.models.sarima import sarima_forecast
 from src.models.evaluation import evaluate_forecast
 
 # 9. Rolling-Origin Backtesting fonksiyonumuzu içe aktarıyoruz.
-from src.models.backtesting import rolling_backtest
+from src.models.backtesting import( rolling_backtest ,
+                                   compare_models_backtest)
+
 
 
 # 10. Projemizin bütün aşamalarını yöneten ana fonksiyonu tanımlıyoruz.
@@ -231,6 +233,33 @@ def main():
         .mean()
         .round(2)
     )
+    #43. iki modelin rolling backtesting sonuçlarını karşılaştırıyoruz.
+    model_backend_results = compare_models_backtest(
+        processed_df,
+        initial_train_size=312,
+        horizon=6,
+        step=6
+    )
+    #Her modelin bütün dönemlerdeki sonuçlarını gösteriyoruz.
+    print("\nModellerin Rolling Backtesting Karşılaştırması:")
+    print(model_backend_results.to_string(index=False))
+    
+    #45. Model adına göre sonuçları grupluyoruz.
+    grouped_results = model_backend_results.groupby("model")
+    
+    #46. Her modelin ortalama hata metriklerini hesaplayıyoruz.
+    average_metrics = grouped_results[["MAE", "RMSE", "sMAPE"]].mean()
+    
+    #47. Her modelin ortalama performansını terminalde gösteriyoruz.
+    print("\nModellerin Ortalama Performans Metrikleri:")
+    print(average_metrics.round(2))
+    
+    #48. Ortalama sMAPE değeri en düşük olan modeli belirliyoruz.
+    best_model = average_metrics["sMAPE"].idxmin()
+    
+    #49. En düşük sMAPE değerine sahip modeli terminalde bildiriyoruz.
+    print(f"\nEn iyi model: {best_model} (En düşük sMAPE)")
+    
 
 
 # 42. Bu dosya doğrudan çalıştırıldığında main() fonksiyonunu
