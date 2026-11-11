@@ -45,9 +45,14 @@ from src.models.grid_search import (
     sarima_grid_backtest,
 )
 
-#features 
+# 11. XGBoost için geçmiş satışlardan model özelliklerini oluşturuyoruz.
 from src.features.feature_engineering import create_features
 
+# 12. XGBoost regresyon modelinin eğitim fonksiyonunu içe aktarıyoruz.
+from src.models.xgboost_model import (
+    train_xgboost_model,
+    recursive_forecast_xgboost
+)
 
 # 11. Projemizin bütün aşamalarını yöneten ana fonksiyonu tanımlıyoruz.
 def main():
@@ -391,11 +396,36 @@ def main():
     print("\nEğitim Özelliklerinde Eksik Değer Kontrolü:")
     print(X_train.isna().sum().sum())
     
+    # ========================================================
+    # AŞAMA 14 - XGBOOST MODEL TRAINING
+    # ========================================================
 
+    # Hazırladığımız eğitim verileriyle XGBoost'u eğitiyoruz.
+    xgboost_model = train_xgboost_model(
+        X_train=X_train,
+        y_train=y_train
+    )
+
+    # Eğitimin tamamlandığını bildiriyoruz.
+    print("\nXGBoost modeli başarıyla eğitildi.")
+
+    # Modelin türünü kontrol ediyoruz.
+    print("Model türü:", type(xgboost_model))
+    
+    # Eğitilmiş XGBoost modeliyle gelecek 12 ayı tahmin ediyoruz.
+    xgboost_forecast =recursive_forecast_xgboost(
+        model=xgboost_model,
+        train_df=train_df,
+        horizon=12
+    )
+    #Tahmin sonuçlarını yazdırıyoruz.
+    print("\nXGBoost Recursive Forecasting Sonuçları:")
+    print(xgboost_forecast)
+    
 # ========================================================
 # PIPELINE BAŞLATMA
 # ========================================================
 
-# 67. Dosya doğrudan çalıştırıldığında ana pipeline'ı başlatıyoruz.
+# Dosya doğrudan çalıştırıldığında ana pipeline'ı başlatıyoruz.
 if __name__ == "__main__":
     main()
