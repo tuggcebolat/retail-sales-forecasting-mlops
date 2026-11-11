@@ -45,6 +45,9 @@ from src.models.grid_search import (
     sarima_grid_backtest,
 )
 
+#features 
+from src.features.feature_engineering import create_features
+
 
 # 11. Projemizin bütün aşamalarını yöneten ana fonksiyonu tanımlıyoruz.
 def main():
@@ -358,7 +361,36 @@ def main():
 
         # 66. Sonuç üretilemezse kullanıcıya bilgi veriyoruz.
         print("\nGrid Backtesting sonucu bulunamadı.")
-
+    
+    # ========================================================
+    # Aşama 13 - Özellik Mühendisliği (Feature Engineering)
+    # ========================================================
+    
+    #1. Eğitim dönemindeki geçmiş satışlardan
+    #lag, rolling ve takvim özelliklerini oluşturuyoruz.
+    feature_train_df = create_features(train_df)
+    
+    # 2.Hedef  satış sütununu çıkararak
+    #modelin kullanacağı girdi özelliklerini oluşturuyoruz.
+    X_train = feature_train_df.drop(columns=["sales"])
+    
+    #3. modelin öğrenmeye çalışacağı
+    #gerçek satış değerlerini belirliyoruz.
+    y_train = feature_train_df["sales"]
+    
+    #Oluşturlan özelliklerin ilk 5 satırını terminalde gösteriyoruz.
+    print("\nXGBoost Eğitim Özellikleri:")
+    print(X_train.head())
+    
+    #5.Girdi ve hedef değişkenlerin boyutlarını terminalde gösteriyoruz.
+    print("\nXGBoost Eğitim Özellikleri Boyutu:")
+    print(f"Girdi Özellikleri: {X_train.shape}")
+    print(f"Hedef Değişken: {y_train.shape}")
+    
+    #6 Eğitim özelliklerinde eksik değer olup olmadığını kontrol ediyoruz.
+    print("\nEğitim Özelliklerinde Eksik Değer Kontrolü:")
+    print(X_train.isna().sum().sum())
+    
 
 # ========================================================
 # PIPELINE BAŞLATMA
