@@ -422,6 +422,18 @@ def main():
     print("\nXGBoost Recursive Forecasting Sonuçları:")
     print(xgboost_forecast)
     
+    #Aşama 15  - XGBOOST MODEL  EVALUATION
+    xgboost_metrics = evaluate_forecast(
+        test_df["sales"],
+        xgboost_forecast
+    )
+    
+    # XGBoost modelinin performansını terminalde gösteriyoruz.
+    print("\nXGBoost Test Performansı:")
+    
+     # MAE, RMSE ve sMAPE değerlerini dört ondalık basamakla yazdırıyoruz.
+    for metric, value in xgboost_metrics.items():
+        print(f"{metric}: {value:.4f}")
 # ========================================================
 # PIPELINE BAŞLATMA
 # ========================================================
