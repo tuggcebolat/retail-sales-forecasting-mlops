@@ -19,3 +19,16 @@ data/raw/
 data/processed/
 /models/
 mlruns/
+# ==========================================
+# MLFLOW - LOCAL TRACKING FILES
+# ==========================================
+
+# MLflow SQLite veritabanı
+mlflow.db
+mlflow.db-*
+
+# MLflow deney ve artifact dosyaları
+mlruns/
+
+# MLflow tarafından oluşturulabilecek yerel çıktılar
+mlartifacts/

@@ -57,6 +57,12 @@ from src.models.xgboost_model import (
 # XGBoost Rolling-Origin Backtesting fonksiyonunu içe aktarıyoruz.
 from src.models.xgboost_backtesting import xgboost_rolling_backtest
 
+# MLflow bağlantısı ve SARIMA deney kaydı.
+from src.tracking.mlflow_tracking import (
+    setup_mlflow,
+    log_model_experiment
+)
+
 # 11. Projemizin bütün aşamalarını yöneten ana fonksiyonu tanımlıyoruz.
 def main():
 
@@ -513,6 +519,80 @@ def main():
 
     print(f"\nBacktesting sonucunda en başarılı model: {best_model}")
 
+    # ========================================================
+
+    # ========================================================
+    # AŞAMA 18 - MLFLOW EXPERIMENT TRACKING
+    # ========================================================
+
+    # MLflow sunucusuna bağlantı kuruyoruz.
+    setup_mlflow()
+
+    # Backtesting değerlendirmesinde kullandığımız ayarları
+    # tek bir sözlükte topluyoruz.
+    backtest_config = {
+        "initial_train_size": 312,
+        "horizon": 6,
+        "step": 6
+    }
+
+    # Eğitim verisinin ilk tarihini alıyoruz.
+    train_start = train_df.index.min().strftime("%Y-%m-%d")
+
+    # Eğitim verisinin son tarihini alıyoruz.
+    train_end = train_df.index.max().strftime("%Y-%m-%d")
+
+    # XGBoost backtesting sonuçlarının satır sayısını alıyoruz.
+    n_folds = len(xgboost_backtest_results)
+
+    # Deneylerimiz için ortak açıklayıcı bilgiler oluşturuyoruz.
+    metadata = {
+        "evaluation_type": "rolling_origin",
+        "train_start": train_start,
+        "train_end": train_end,
+        "initial_train_size": backtest_config["initial_train_size"],
+        "forecast_horizon": backtest_config["horizon"],
+        "step": backtest_config["step"],
+        "number_of_folds": n_folds,
+        "data_source": "FRED"
+    }
+
+    # SARIMA'nın ortalama backtesting metriklerini alıyoruz.
+    sarima_metrics = average_backtest_metrics.loc[
+        "SARIMA", ["MAE", "RMSE", "sMAPE"]
+    ].to_dict()
+
+    # XGBoost'un ortalama backtesting metriklerini alıyoruz.
+    xgboost_metrics = average_backtest_metrics.loc[
+        "XGBoost", ["MAE", "RMSE", "sMAPE"]
+    ].to_dict()
+
+    # SARIMA deneyini parametre, metrik ve etiketlerle kaydediyoruz.
+    log_model_experiment(
+        model_name="SARIMA",
+        params={
+            "order": (1, 1, 1),
+            "seasonal_order": (1, 1, 1, 12),
+            **backtest_config
+        },
+        metrics=sarima_metrics,
+        metadata=metadata
+    )
+
+    # XGBoost deneyini parametre, metrik ve etiketlerle kaydediyoruz.
+    log_model_experiment(
+        model_name="XGBoost",
+        params={
+            "n_estimators": 100,
+            "max_depth": 3,
+            "learning_rate": 0.05,
+            "random_state": 42,
+            **backtest_config
+        },
+        metrics=xgboost_metrics,
+        metadata=metadata
+    )
+ 
 # ========================================================
 # PIPELINE BAŞLATMA
 # ========================================================
