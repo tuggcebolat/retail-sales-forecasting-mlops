@@ -54,6 +54,9 @@ from src.models.xgboost_model import (
     recursive_forecast_xgboost
 )
 
+# XGBoost Rolling-Origin Backtesting fonksiyonunu içe aktarıyoruz.
+from src.models.xgboost_backtesting import xgboost_rolling_backtest
+
 # 11. Projemizin bütün aşamalarını yöneten ana fonksiyonu tanımlıyoruz.
 def main():
 
@@ -434,6 +437,82 @@ def main():
      # MAE, RMSE ve sMAPE değerlerini dört ondalık basamakla yazdırıyoruz.
     for metric, value in xgboost_metrics.items():
         print(f"{metric}: {value:.4f}")
+    # ========================================================
+    # AŞAMA 16 - THREE MODEL COMPARISON
+    # ========================================================
+
+    # Gerçek satışları ve üç modelin 12 aylık tahminlerini
+    # tarih indeksleri üzerinden aynı tabloda birleştiriyoruz.
+    final_comparison = pd.DataFrame({
+        "Actual Sales": test_df["sales"],
+        "Seasonal Naive": naive_predictions,
+        "SARIMA": sarima_predictions,
+        "XGBoost": xgboost_forecast,
+    })
+
+    # Karşılaştırmanın yalnızca test dönemini içerdiğini kontrol ediyoruz.
+    final_comparison = final_comparison.reindex(test_df.index)
+
+    # Gerçek satışlar ile tahminleri yan yana gösteriyoruz.
+    print("\nÜç Modelin Tahmin Karşılaştırması:")
+    print(final_comparison.round(2).to_string())
+
+    # Modellerin daha önce hesaplanan hata metriklerini birleştiriyoruz.
+    final_metrics = pd.DataFrame({
+        "Seasonal Naive": naive_metrics,
+        "SARIMA": sarima_metrics,
+        "XGBoost": xgboost_metrics,
+    })
+
+    # MAE, RMSE ve sMAPE sonuçlarını karşılaştırıyoruz.
+    print("\nÜç Modelin Performans Karşılaştırması:")
+    print(final_metrics.round(4).to_string())
+
+    # Test dönemindeki en düşük sMAPE değerine sahip modeli buluyoruz.
+    # Nihai model seçimini ileride backtesting sonuçlarına göre yapacağız.
+    best_model_name = final_metrics.loc["sMAPE"].idxmin()
+    print(f"\n12 aylık test döneminde en başarılı model: {best_model_name}")
+
+
+    # ========================================================
+    # AŞAMA 17 - XGBOOST ROLLING-ORIGIN BACKTESTING
+    # ========================================================
+
+    # XGBoost modelini 15 geçmiş dönemde değerlendiriyoruz.
+    xgboost_backtest_results = xgboost_rolling_backtest(
+        df=train_df,
+        initial_train_size=312,
+        horizon=6,
+        step=6
+    )
+
+    # Her dönemin hata metriklerini gösteriyoruz.
+    print("\nXGBoost Rolling Backtesting Sonuçları:")
+    print(xgboost_backtest_results.to_string(index=False))
+
+    # SARIMA ve Seasonal Naive sonuçlarıyla birleştiriyoruz.
+    all_backtest_results = pd.concat(
+        [model_backtest_results, xgboost_backtest_results],
+        ignore_index=True
+    )
+
+    # Üç modelin ortalama hata metriklerini hesaplıyoruz.
+    average_backtest_metrics = (
+        all_backtest_results
+        .groupby("model")[["MAE", "RMSE", "sMAPE"]]
+        .mean()
+        .sort_values("sMAPE")
+    )
+
+    # Karşılaştırma tablosunu gösteriyoruz.
+    print("\nÜç Modelin Ortalama Backtesting Karşılaştırması:")
+    print(average_backtest_metrics.round(2))
+
+    # En düşük ortalama sMAPE'ye sahip modeli belirliyoruz.
+    best_model = average_backtest_metrics["sMAPE"].idxmin()
+
+    print(f"\nBacktesting sonucunda en başarılı model: {best_model}")
+
 # ========================================================
 # PIPELINE BAŞLATMA
 # ========================================================
