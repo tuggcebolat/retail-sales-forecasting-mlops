@@ -28,7 +28,10 @@ from src.data.eda import (
 from src.models.baseline import seasonal_naive_forecast
 
 # 7. SARIMA tahmin modelimizi içe aktarıyoruz.
-from src.models.sarima import sarima_forecast
+from src.models.sarima import (
+    sarima_forecast,
+    train_sarima_model,
+)
 
 # 8. MAE, RMSE ve sMAPE metriklerini hesaplayan fonksiyonu çağırıyoruz.
 from src.models.evaluation import evaluate_forecast
@@ -60,8 +63,10 @@ from src.models.xgboost_backtesting import xgboost_rolling_backtest
 # MLflow bağlantısı ve SARIMA deney kaydı.
 from src.tracking.mlflow_tracking import (
     setup_mlflow,
-    log_model_experiment
+    log_model_experiment,
+    save_sarima_model,
 )
+
 
 # 11. Projemizin bütün aşamalarını yöneten ana fonksiyonu tanımlıyoruz.
 def main():
@@ -520,8 +525,6 @@ def main():
     print(f"\nBacktesting sonucunda en başarılı model: {best_model}")
 
     # ========================================================
-
-    # ========================================================
     # AŞAMA 18 - MLFLOW EXPERIMENT TRACKING
     # ========================================================
 
@@ -592,7 +595,31 @@ def main():
         metrics=xgboost_metrics,
         metadata=metadata
     )
- 
+    # ========================================================
+    # AŞAMA 19 - SARIMA MODEL PERSISTENCE
+    # ========================================================
+
+    # Backtesting sonucunda en başarılı model SARIMA ise kaydediyoruz.
+    if best_model == "SARIMA":
+
+        # SARIMA modelini yalnızca eğitim verisi üzerinde eğitiyoruz.
+        fitted_sarima = train_sarima_model(
+            train_df=train_df,
+            order=(1, 1, 1),
+            seasonal_order=(1, 1, 1, 12)
+        )
+
+        # Eğitilmiş SARIMA modelini MLflow'a kaydediyoruz.
+        model_info = save_sarima_model(fitted_sarima)
+
+        # Kaydedilen modelin MLflow URI bilgisini yazdırıyoruz.
+        print("\nKaydedilen SARIMA model URI:", model_info.model_uri)
+
+    else:
+        # Bu aşamada yalnızca SARIMA kaydı destekleniyor.
+        print("\nSARIMA seçilmediği için model kaydedilmedi.")
+
+
 # ========================================================
 # PIPELINE BAŞLATMA
 # ========================================================

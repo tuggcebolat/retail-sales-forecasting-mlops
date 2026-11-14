@@ -1,35 +1,29 @@
 
-# 1. Veri işlemleri için Pandas kütüphanesini içe aktarıyoruz.
+# Veri işlemleri için Pandas kütüphanesini içe aktarıyoruz.
 import pandas as pd
 
-# 2. SARIMA modelini oluşturmak için SARIMAX sınıfını çağırıyoruz.
+# SARIMA modelini oluşturmak için SARIMAX sınıfını içe aktarıyoruz.
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 
-# 3. SARIMA modeliyle gelecek dönem satışlarını tahmin ediyoruz.
-def sarima_forecast(
+# SARIMA modelini eğiten fonksiyonumuzu tanımlıyoruz.
+def train_sarima_model(
     train_df: pd.DataFrame,
-    horizon: int = 6,
     order: tuple = (1, 1, 1),
     seasonal_order: tuple = (1, 1, 1, 12)
-) -> pd.Series:
-
-    # 4. Tahmin edilecek dönem sayısını kontrol ediyoruz.
-    if horizon < 1:
-        raise ValueError("Horizon en az 1 olmalıdır.")
-
-    # 5. Eğitim verisinde sales sütunu bulunmalı.
+):
+    # Eğitim verisinde sales sütununun bulunmasını kontrol ediyoruz.
     if "sales" not in train_df.columns:
         raise ValueError("sales sütunu bulunamadı.")
 
-    # 6. Eğitim verisinin boş olmaması gerekiyor.
+    # Eğitim verisinin boş olup olmadığını kontrol ediyoruz.
     if train_df.empty:
         raise ValueError("Eğitim verisi boş olamaz.")
 
-    # 7. Orijinal veriyi değiştirmeden satış sütununu seçiyoruz.
+    # Orijinal DataFrame'i değiştirmeden satışları seçiyoruz.
     sales = train_df["sales"].copy()
 
-    # 8. SARIMA modelini tanımlıyoruz.
+    # SARIMA modelimizi önceki ayarlarımızla oluşturuyoruz.
     model = SARIMAX(
         sales,
         order=order,
@@ -39,19 +33,40 @@ def sarima_forecast(
         enforce_invertibility=False
     )
 
-    # 9. Modeli geçmiş satış verileriyle eğitiyoruz.
+    # Modelimizi eğitim verisi üzerinde eğitiyoruz.
     fitted_model = model.fit(disp=False)
 
-    # 10. Gelecek horizon dönem için tahmin sonuç nesnesi oluşturuyoruz.
-    forecast_result = fitted_model.get_forecast(
-        steps=horizon
+    # Eğitilmiş model nesnesini geri döndürüyoruz.
+    return fitted_model
+
+
+# SARIMA ile gelecek dönem satışlarını tahmin ediyoruz.
+def sarima_forecast(
+    train_df: pd.DataFrame,
+    horizon: int = 6,
+    order: tuple = (1, 1, 1),
+    seasonal_order: tuple = (1, 1, 1, 12)
+) -> pd.Series:
+
+    # Tahmin ufkunun en az bir dönem olmasını sağlıyoruz.
+    if horizon < 1:
+        raise ValueError("Horizon en az 1 olmalıdır.")
+
+    # Modeli ortak eğitim fonksiyonumuzla eğitiyoruz.
+    fitted_model = train_sarima_model(
+        train_df=train_df,
+        order=order,
+        seasonal_order=seasonal_order
     )
 
-    # 11. Tahmin sonuç nesnesinden sayısal tahminleri alıyoruz.
+    # Eğitilmiş modelle gelecek dönem tahminlerini üretiyoruz.
+    forecast_result = fitted_model.get_forecast(steps=horizon)
+
+    # Tahmin edilen değerleri alıyoruz.
     predictions = forecast_result.predicted_mean
 
-    # 12. Tahmin serisine açıklayıcı bir isim veriyoruz.
+    # Tahmin serisine açıklayıcı bir isim veriyoruz.
     predictions.name = "predicted_sales"
 
-    # 13. Sayısal tahminleri pandas Series olarak döndürüyoruz.
+    # Tahminleri Pandas Series olarak döndürüyoruz.
     return predictions

@@ -49,3 +49,22 @@ def log_model_experiment(
 
         # Başarılı kayıt işlemini terminale yazdırıyoruz.
         print(f"{model_name} deneyi MLflow'a kaydedildi.")
+# Eğitilmiş SARIMA modelini MLflow'a kaydeden fonksiyon.
+def save_sarima_model(fitted_model):
+
+    # Modeli kaydetmek için yeni bir MLflow çalıştırması açıyoruz.
+    with mlflow.start_run(run_name="SARIMA_Model_Save"):
+
+        # SARIMA modelini MLflow artifact deposuna kaydediyoruz.
+        model_info = mlflow.statsmodels.log_model(
+            statsmodels_model=fitted_model,
+            name="sarima_model"
+        )
+
+        # Kaydedilen modelin MLflow adresini yazdırıyoruz.
+        print("SARIMA modeli kaydedildi.")
+        print("Model URI:", model_info.model_uri)
+
+        # Model bilgilerini diğer fonksiyonlarda kullanmak
+        # üzere geri döndürüyoruz.
+        return model_info
