@@ -1,7 +1,8 @@
 
 # MLflow kütüphanesini içe aktarıyoruz.
 import mlflow
-
+# MLflow istemcisini içe aktarıyoruz.
+from mlflow import MlflowClient
 
 # MLflow sunucusu ve experiment ayarlarını yapılandırıyoruz.
 def setup_mlflow():
@@ -68,3 +69,48 @@ def save_sarima_model(fitted_model):
         # Model bilgilerini diğer fonksiyonlarda kullanmak
         # üzere geri döndürüyoruz.
         return model_info
+
+def register_sarima_model(model_uri):
+
+    # Eğitilmiş modeli MLflow Model Registry'ye kaydediyoruz.
+    registered_model = mlflow.register_model(
+        model_uri=model_uri,
+        name="retail-sales-sarima"
+    )
+
+    # Oluşturulan model sürümünü gösteriyoruz.
+    print("Model adı:", registered_model.name)
+    print("Model sürümü:", registered_model.version)
+
+    return registered_model
+
+
+
+# MLflow Model Registry işlemleri için istemciyi içe aktarıyoruz.
+from mlflow import MlflowClient
+
+
+# Model adı ve sürüm numarasını parametre olarak alıyoruz.
+def set_champion_alias(model_name, version):
+
+    # MLflow istemcisini oluşturuyoruz.
+    client = MlflowClient()
+
+    # Belirtilen model sürümüne champion alias'ını atıyoruz.
+    client.set_registered_model_alias(
+        name=model_name,
+        alias="champion",
+        version=version
+    )
+
+    # Atanan alias'ı tekrar sorgulayarak doğruluyoruz.
+    registered_version = client.get_model_version_by_alias(
+        name=model_name,
+        alias="champion"
+    )
+
+    # Alias'ın doğru sürüme ait olduğunu kontrol ediyoruz.
+    assert str(registered_version.version) == str(version)
+
+    # İşlem başarılıysa bilgi veriyoruz.
+    print(f"{model_name} Version {version} champion olarak ayarlandı.")
