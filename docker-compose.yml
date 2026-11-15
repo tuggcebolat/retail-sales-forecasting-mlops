@@ -1,0 +1,169 @@
+
+services:
+
+  # ==========================================
+  # 1. POSTGRESQL - METADATA DATABASE
+  # ==========================================
+  postgres:
+    # Airflow metadata veritabanı için PostgreSQL kullanıyoruz.
+    image: postgres:16
+
+    # Konteynerin adını belirliyoruz.
+    container_name: retail_airflow_postgres
+
+    # Yerel geliştirme ortamı bağlantı bilgileri.
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+
+    # Veritabanı verilerini kalıcı olarak saklıyoruz.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # PostgreSQL'in hazır olup olmadığını kontrol ediyoruz.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    # Beklenmedik kapanmalarda yeniden başlatıyoruz.
+    restart: unless-stopped
+
+
+  # ==========================================
+  # 2. AIRFLOW INIT - İLK KURULUM
+  # ==========================================
+  airflow-init:
+    # Python 3.11 içeren Airflow sürümünü kullanıyoruz.
+    image: apache/airflow:2.10.5-python3.11
+
+    # İlk kurulum konteyneri.
+    container_name: retail_airflow_init
+
+    # Airflow yapılandırma değişkenleri.
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+    # PostgreSQL hazır olmadan başlatmıyoruz.
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    # Veritabanı şemasını oluşturuyoruz.
+    # Admin hesabı zaten varsa tekrar oluşturmuyoruz.
+    command:
+      - bash
+      - -c
+      - |
+        airflow db migrate &&
+        (airflow users list | grep -q 'admin' ||
+        airflow users create \
+          --username admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com \
+          --password admin)
+
+    # Kurulum tamamlandığında konteyner kapanır.
+    restart: "no"
+
+
+  # ==========================================
+  # 3. AIRFLOW WEBSERVER - WEB ARAYÜZÜ
+  # ==========================================
+  airflow-webserver:
+    # Airflow Webserver imajı.
+    image: apache/airflow:2.10.5-python3.11
+
+    # Konteyner adı.
+    container_name: retail_airflow_webserver
+
+    # Airflow ve Python ortamı ayarları.
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+      # Python'un src paketini bulmasını sağlıyoruz.
+      PYTHONPATH: /opt/airflow
+
+    # Airflow arayüzünü yalnızca yerel bilgisayara açıyoruz.
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    # Yerel proje klasörlerini konteynerle paylaşıyoruz.
+    volumes:
+      # DAG dosyalarımız.
+      - ./dags:/opt/airflow/dags
+
+      # Airflow çalışma kayıtları.
+      - ./airflow_logs:/opt/airflow/logs
+
+      # Mevcut veri bilimi ve MLOps Python kodlarımız.
+      - ./src:/opt/airflow/src
+
+    # İlk kurulum başarıyla tamamlanmış olmalı.
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+    # Web arayüzünü başlatıyoruz.
+    command: webserver
+
+    # Beklenmedik kapanmalarda yeniden başlatıyoruz.
+    restart: unless-stopped
+
+
+  # ==========================================
+  # 4. AIRFLOW SCHEDULER - GÖREV ZAMANLAMA
+  # ==========================================
+  airflow-scheduler:
+    # Webserver ile aynı Airflow sürümünü kullanıyoruz.
+    image: apache/airflow:2.10.5-python3.11
+
+    # Scheduler konteyneri.
+    container_name: retail_airflow_scheduler
+
+    # Airflow ve Python ortamı ayarları.
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+
+      # Python'un src paketini bulmasını sağlıyoruz.
+      PYTHONPATH: /opt/airflow
+
+    # Proje dosyalarını konteynerle paylaşıyoruz.
+    volumes:
+      # Airflow DAG dosyaları.
+      - ./dags:/opt/airflow/dags
+
+      # Airflow logları.
+      - ./airflow_logs:/opt/airflow/logs
+
+      # Mevcut Python modüllerimiz.
+      - ./src:/opt/airflow/src
+
+    # İlk kurulum başarıyla tamamlanmış olmalı.
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+    # DAG'ları zamanlayan servisi başlatıyoruz.
+    command: scheduler
+
+    # Beklenmedik kapanmalarda yeniden başlatıyoruz.
+    restart: unless-stopped
+
+
+# ==========================================
+# 5. KALICI DOCKER VERİ ALANLARI
+# ==========================================
+volumes:
+  # PostgreSQL metadata verilerini koruyoruz.
+  postgres_data:

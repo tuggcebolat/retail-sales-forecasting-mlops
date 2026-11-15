@@ -32,3 +32,6 @@ mlruns/
 
 # MLflow tarafından oluşturulabilecek yerel çıktılar
 mlartifacts/
+
+# Airflow tarafından oluşturulan çalışma kayıtlarını GitHub'a yükleme.
+airflow_logs/
