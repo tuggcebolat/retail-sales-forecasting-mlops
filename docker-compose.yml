@@ -107,6 +107,9 @@ services:
       # Mevcut veri bilimi ve MLOps Python kodlarımız.
       - ./src:/opt/airflow/src
 
+      # FRED verilerini ve CSV çıktılarını saklıyoruz.
+      - ./data:/opt/airflow/data
+
     # İlk kurulum başarıyla tamamlanmış olmalı.
     depends_on:
       airflow-init:
@@ -148,6 +151,9 @@ services:
 
       # Mevcut Python modüllerimiz.
       - ./src:/opt/airflow/src
+
+      # Görevlerin okuyup yazacağı ortak veri klasörü.
+      - ./data:/opt/airflow/data
 
     # İlk kurulum başarıyla tamamlanmış olmalı.
     depends_on:
