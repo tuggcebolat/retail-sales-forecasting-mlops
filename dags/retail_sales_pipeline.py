@@ -1,4 +1,3 @@
-
 # Airflow DAG yapısını içe aktarıyoruz.
 from airflow import DAG
 
@@ -11,17 +10,23 @@ from datetime import datetime
 # Dosya yollarını yönetmek için kullanıyoruz.
 from pathlib import Path
 
-# Mevcut FRED veri çekme fonksiyonumuzu içe aktarıyoruz.
+# Veri işleme kütüphanemizi içe aktarıyoruz.
+import pandas as pd
+
+# Mevcut veri çekme fonksiyonumuzu içe aktarıyoruz.
 from src.data.ingestion import load_sales_data
 
+# Mevcut veri doğrulama fonksiyonumuzu içe aktarıyoruz.
+from src.data.validation import validate_sales_data
 
-# FRED verisini çekip CSV dosyasına kaydeden fonksiyon.
+
+# 1. VERİ ÇEKME
 def extract_data():
 
-    # Mevcut veri çekme fonksiyonumuzu çalıştırıyoruz.
+    # FRED üzerinden satış verilerini çekiyoruz.
     df = load_sales_data()
 
-    # Verileri saklayacağımız klasörü belirliyoruz.
+    # Verilerin saklanacağı klasörü belirliyoruz.
     output_dir = Path("/opt/airflow/data")
 
     # Klasör mevcut değilse oluşturuyoruz.
@@ -33,15 +38,39 @@ def extract_data():
     # DataFrame'i CSV dosyasına kaydediyoruz.
     df.to_csv(output_path, index=False)
 
-    # İşlenen satır sayısını loglara yazdırıyoruz.
+    # Çekilen veri sayısını logluyoruz.
     print(f"Çekilen veri sayısı: {len(df)}")
 
-    # Dosya yolunu döndürüyoruz.
-    # PythonOperator bu değeri XCom'a kaydedebilir.
+    # XCom Push: Dosya yolunu gönderiyoruz.
     return str(output_path)
 
 
-# DAG yapılandırmamızı oluşturuyoruz.
+# 2. VERİ DOĞRULAMA
+def validate_data(ti):
+
+    # XCom Pull: Önceki görevden dosya yolunu alıyoruz.
+    raw_path = ti.xcom_pull(
+        task_ids="extract_data",
+        key="return_value"
+    )
+
+    # CSV dosyasını okuyoruz.
+    df = pd.read_csv(
+        raw_path,
+        parse_dates=["observation_date"]
+    )
+
+    # Veri kalitesi kontrollerini gerçekleştiriyoruz.
+    df = validate_sales_data(df)
+
+    # Doğrulanan veri sayısını logluyoruz.
+    print(f"Doğrulanan veri sayısı: {len(df)}")
+
+    # Sonraki görev için dosya yolunu gönderiyoruz.
+    return raw_path
+
+
+# 3. DAG YAPILANDIRMASI
 with DAG(
     dag_id="retail_sales_pipeline",
     start_date=datetime(2026, 11, 1),
@@ -50,8 +79,17 @@ with DAG(
     tags=["mlops", "retail-sales"],
 ) as dag:
 
-    # İlk gerçek veri çekme görevimizi tanımlıyoruz.
+    # Veri çekme görevimizi tanımlıyoruz.
     extract_task = PythonOperator(
         task_id="extract_data",
         python_callable=extract_data,
     )
+
+    # Veri doğrulama görevimizi tanımlıyoruz.
+    validate_task = PythonOperator(
+        task_id="validate_data",
+        python_callable=validate_data,
+    )
+
+    # Görevlerin çalışma sırasını belirliyoruz.
+    extract_task >> validate_task
