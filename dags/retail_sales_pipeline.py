@@ -22,6 +22,9 @@ from src.data.validation import validate_sales_data
 # Veri ön işleme fonksiyonumuzu içe aktarıyoruz.
 from src.data.preprocessing import preprocess_sales_data
 
+#Özellik mühendisliği fonksiyonumuzu içe aktarıyoruz.
+from src.features.feature_engineering import create_features
+
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -96,6 +99,32 @@ def preprocess_data(ti):
 
     # Dosya yolunu XCom ile gönderiyoruz.
     return output_path
+def feature_engineering_data(ti):
+
+    # XCom üzerinden işlenmiş verinin yolunu alıyoruz.
+    processed_path = ti.xcom_pull(
+        task_ids="preprocess_data",
+        key="return_value"
+    )
+
+    # Tarih sütununu index yaparak CSV dosyasını okuyoruz.
+    df = pd.read_csv(
+        processed_path,
+        parse_dates=["observation_date"],
+        index_col="observation_date"
+    )
+
+    # Lag, rolling ve calendar özelliklerini oluşturuyoruz.
+    df = create_features(df)
+
+    # Yeni dosya yolunu belirliyoruz.
+    output_path = "/opt/airflow/data/sales_features.csv"
+
+    # Özellikleri oluşturulmuş veriyi kaydediyoruz.
+    df.to_csv(output_path, index=True)
+
+    # Dosya yolunu XCom ile gönderiyoruz.
+    return output_path
 
 
 
@@ -124,6 +153,11 @@ with DAG(
         task_id="preprocess_data",
         python_callable=preprocess_data,
     )
+    # Özellik mühendisliği görevimizi tanımlıyoruz.
+    feature_task = PythonOperator(
+        task_id="feature_engineering_data",
+        python_callable=feature_engineering_data,
+    )
 
     # Görevlerin çalışma sırasını belirliyoruz.
-    extract_task >> validate_task >> preprocess_task
+    extract_task >> validate_task >> preprocess_task >> feature_task
