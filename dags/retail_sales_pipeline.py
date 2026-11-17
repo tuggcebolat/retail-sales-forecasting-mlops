@@ -19,6 +19,8 @@ from src.data.ingestion import load_sales_data
 # Mevcut veri doğrulama fonksiyonumuzu içe aktarıyoruz.
 from src.data.validation import validate_sales_data
 
+# Veri ön işleme fonksiyonumuzu içe aktarıyoruz.
+from src.data.preprocessing import preprocess_sales_data
 
 # 1. VERİ ÇEKME
 def extract_data():
@@ -69,6 +71,33 @@ def validate_data(ti):
     # Sonraki görev için dosya yolunu gönderiyoruz.
     return raw_path
 
+def preprocess_data(ti):
+
+    # Önceki görevden dosya yolunu alıyoruz.
+    raw_path = ti.xcom_pull(
+        task_ids="validate_data",
+        key="return_value"
+    )
+
+    # CSV dosyasını okuyup tarih sütununu dönüştürüyoruz.
+    df = pd.read_csv(
+        raw_path,
+        parse_dates=["observation_date"]
+    )
+
+    # Veri ön işleme fonksiyonumuzu çalıştırıyoruz.
+    df = preprocess_sales_data(df)
+
+    # İşlenmiş verinin dosya yolunu belirliyoruz.
+    output_path = "/opt/airflow/data/sales_processed.csv"
+
+    # Tarih index'ini koruyarak veriyi kaydediyoruz.
+    df.to_csv(output_path, index=True)
+
+    # Dosya yolunu XCom ile gönderiyoruz.
+    return output_path
+
+
 
 # 3. DAG YAPILANDIRMASI
 with DAG(
@@ -90,6 +119,11 @@ with DAG(
         task_id="validate_data",
         python_callable=validate_data,
     )
+    # Veri ön işleme görevimizi oluşturuyoruz.
+    preprocess_task = PythonOperator(
+        task_id="preprocess_data",
+        python_callable=preprocess_data,
+    )
 
     # Görevlerin çalışma sırasını belirliyoruz.
-    extract_task >> validate_task
+    extract_task >> validate_task >> preprocess_task
