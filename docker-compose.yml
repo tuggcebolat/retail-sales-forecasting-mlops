@@ -1,60 +1,54 @@
-
 services:
 
   # ==========================================
   # 1. POSTGRESQL - METADATA DATABASE
   # ==========================================
   postgres:
-    # Airflow metadata veritabanı için PostgreSQL kullanıyoruz.
+    # Use PostgreSQL as the Airflow metadata database.
     image: postgres:16
 
-    # Konteynerin adını belirliyoruz.
     container_name: retail_airflow_postgres
 
-    # Yerel geliştirme ortamı bağlantı bilgileri.
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
 
-    # Veritabanı verilerini kalıcı olarak saklıyoruz.
+    # Persist database records.
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-    # PostgreSQL'in hazır olup olmadığını kontrol ediyoruz.
+    # Check whether PostgreSQL is ready.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-    # Beklenmedik kapanmalarda yeniden başlatıyoruz.
     restart: unless-stopped
 
 
   # ==========================================
-  # 2. AIRFLOW INIT - İLK KURULUM
+  # 2. AIRFLOW INIT
   # ==========================================
   airflow-init:
-    # Python 3.11 içeren Airflow sürümünü kullanıyoruz.
-    image: apache/airflow:2.10.5-python3.11
+    # Build and use our custom Docker image.
+    build: .
+    image: retail-airflow:latest
 
-    # İlk kurulum konteyneri.
     container_name: retail_airflow_init
 
-    # Airflow yapılandırma değişkenleri.
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
 
-    # PostgreSQL hazır olmadan başlatmıyoruz.
+    # Wait until PostgreSQL is ready.
     depends_on:
       postgres:
         condition: service_healthy
 
-    # Veritabanı şemasını oluşturuyoruz.
-    # Admin hesabı zaten varsa tekrar oluşturmuyoruz.
+    # Initialize the database and create an admin user.
     command:
       - bash
       - -c
@@ -69,107 +63,83 @@ services:
           --email admin@example.com \
           --password admin)
 
-    # Kurulum tamamlandığında konteyner kapanır.
     restart: "no"
 
 
   # ==========================================
-  # 3. AIRFLOW WEBSERVER - WEB ARAYÜZÜ
+  # 3. AIRFLOW WEBSERVER
   # ==========================================
   airflow-webserver:
-    # Airflow Webserver imajı.
-    image: apache/airflow:2.10.5-python3.11
+    # Use our custom Docker image.
+    build: .
+    image: retail-airflow:latest
 
-    # Konteyner adı.
     container_name: retail_airflow_webserver
 
-    # Airflow ve Python ortamı ayarları.
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
 
-      # Python'un src paketini bulmasını sağlıyoruz.
+      # Allow Python to locate our project modules.
       PYTHONPATH: /opt/airflow
 
-    # Airflow arayüzünü yalnızca yerel bilgisayara açıyoruz.
+    # Expose the web interface locally.
     ports:
       - "127.0.0.1:8080:8080"
 
-    # Yerel proje klasörlerini konteynerle paylaşıyoruz.
+    # Share local directories with the container.
     volumes:
-      # DAG dosyalarımız.
       - ./dags:/opt/airflow/dags
-
-      # Airflow çalışma kayıtları.
       - ./airflow_logs:/opt/airflow/logs
-
-      # Mevcut veri bilimi ve MLOps Python kodlarımız.
       - ./src:/opt/airflow/src
-
-      # FRED verilerini ve CSV çıktılarını saklıyoruz.
       - ./data:/opt/airflow/data
 
-    # İlk kurulum başarıyla tamamlanmış olmalı.
     depends_on:
       airflow-init:
         condition: service_completed_successfully
 
-    # Web arayüzünü başlatıyoruz.
     command: webserver
 
-    # Beklenmedik kapanmalarda yeniden başlatıyoruz.
     restart: unless-stopped
 
 
   # ==========================================
-  # 4. AIRFLOW SCHEDULER - GÖREV ZAMANLAMA
+  # 4. AIRFLOW SCHEDULER
   # ==========================================
   airflow-scheduler:
-    # Webserver ile aynı Airflow sürümünü kullanıyoruz.
-    image: apache/airflow:2.10.5-python3.11
+    # Use our custom Docker image.
+    build: .
+    image: retail-airflow:latest
 
-    # Scheduler konteyneri.
     container_name: retail_airflow_scheduler
 
-    # Airflow ve Python ortamı ayarları.
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
 
-      # Python'un src paketini bulmasını sağlıyoruz.
       PYTHONPATH: /opt/airflow
 
-    # Proje dosyalarını konteynerle paylaşıyoruz.
+    # Mount project directories.
     volumes:
-      # Airflow DAG dosyaları.
       - ./dags:/opt/airflow/dags
-
-      # Airflow logları.
       - ./airflow_logs:/opt/airflow/logs
-
-      # Mevcut Python modüllerimiz.
       - ./src:/opt/airflow/src
-
-      # Görevlerin okuyup yazacağı ortak veri klasörü.
       - ./data:/opt/airflow/data
 
-    # İlk kurulum başarıyla tamamlanmış olmalı.
     depends_on:
       airflow-init:
         condition: service_completed_successfully
 
-    # DAG'ları zamanlayan servisi başlatıyoruz.
+    # Schedule and execute Airflow tasks.
     command: scheduler
 
-    # Beklenmedik kapanmalarda yeniden başlatıyoruz.
     restart: unless-stopped
 
 
 # ==========================================
-# 5. KALICI DOCKER VERİ ALANLARI
+# 5. PERSISTENT STORAGE
 # ==========================================
 volumes:
-  # PostgreSQL metadata verilerini koruyoruz.
   postgres_data:
