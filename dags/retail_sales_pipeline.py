@@ -31,6 +31,7 @@ from src.models.backtesting import compare_models_backtest
 # Import the XGBoost backtesting function.
 from src.models.xgboost_backtesting import xgboost_rolling_backtest
 
+from src.models.model_selection import compare_and_select_models
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -181,7 +182,35 @@ def backtest_xgboost(ti):
     # Return the output file path.
     return output_path
     
+def compare_models(ti):
 
+    # Retrieve the statistical backtesting results path.
+    statistical_path = ti.xcom_pull(
+        task_ids="backtest_statistical_models"
+    )
+
+    # Retrieve the XGBoost backtesting results path.
+    xgboost_path = ti.xcom_pull(
+        task_ids="backtest_xgboost"
+    )
+
+    # Load and combine both datasets.
+    df = pd.concat([
+        pd.read_csv(statistical_path),
+        pd.read_csv(xgboost_path)
+    ], ignore_index=True)
+
+    # Compare models and select the best one.
+    summary, best_model = compare_and_select_models(df)
+
+    # Save the model comparison results.
+    summary.to_csv(
+        "/opt/airflow/data/model_comparison.csv",
+        index=False
+    )
+
+    # Return the selected model's name.
+    return best_model
 
 # 3. DAG YAPILANDIRMASI
 with DAG(
@@ -223,6 +252,12 @@ with DAG(
         task_id="backtest_xgboost",
         python_callable=backtest_xgboost
     )
-    # Görevlerin çalışma sırasını belirliyoruz.
-    extract_task >> validate_task >> preprocess_task 
+    # Define the model comparison task.
+    comparison_task = PythonOperator(
+       task_id="compare_models",
+       python_callable=compare_models
+    )
+     # Görevlerin çalışma sırasını belirliyoruz.
+    extract_task >> validate_task >> preprocess_task
     preprocess_task >> [feature_task, backtest_task, xgboost_task]
+    [backtest_task, xgboost_task] >> comparison_task
