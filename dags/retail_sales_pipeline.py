@@ -25,6 +25,9 @@ from src.data.preprocessing import preprocess_sales_data
 #Özellik mühendisliği fonksiyonumuzu içe aktarıyoruz.
 from src.features.feature_engineering import create_features
 
+# SARIMA ve Seasonal Naive karşılaştırma fonksiyonunu içe aktarıyoruz.
+from src.models.backtesting import compare_models_backtest
+
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -126,6 +129,29 @@ def feature_engineering_data(ti):
     # Dosya yolunu XCom ile gönderiyoruz.
     return output_path
 
+def backtest_Statistical_models(ti):
+    #retrieve the processed data path.
+    processed_path = ti.xcom_pull(
+        task_ids="preprocess_data",
+        key="return_value"
+    )
+    
+    #load the time  series data.
+    df=pd.read_csv(
+        processed_path,
+        parse_dates=["observation_date"],
+        index_col="observation_date"
+        
+    ).asfreq("MS")
+    #Evaluate Seasonal Naive and SARIMA
+    results =compare_models_backtest(df)
+    
+    #Save the evaluation results.
+    output_path ="/opt/airflow/data/statistical_backtest_results.csv"
+    results.to_csv(output_path, index=False)
+    
+    #return the output file path.
+    return output_path
 
 
 # 3. DAG YAPILANDIRMASI
@@ -158,6 +184,12 @@ with DAG(
         task_id="feature_engineering_data",
         python_callable=feature_engineering_data,
     )
+    #Define the backtesting task.
+    backtest_task =PythonOperator(
+        task_id ="backtest_statistical_models",
+        python_callable =backtest_Statistical_models
+    )
 
     # Görevlerin çalışma sırasını belirliyoruz.
-    extract_task >> validate_task >> preprocess_task >> feature_task
+    extract_task >> validate_task >> preprocess_task 
+    preprocess_task >> [feature_task,backtest_task]
