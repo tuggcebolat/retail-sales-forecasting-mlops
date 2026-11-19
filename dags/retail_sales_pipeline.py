@@ -28,6 +28,9 @@ from src.features.feature_engineering import create_features
 # SARIMA ve Seasonal Naive karşılaştırma fonksiyonunu içe aktarıyoruz.
 from src.models.backtesting import compare_models_backtest
 
+# Import the XGBoost backtesting function.
+from src.models.xgboost_backtesting import xgboost_rolling_backtest
+
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -153,6 +156,32 @@ def backtest_Statistical_models(ti):
     #return the output file path.
     return output_path
 
+def backtest_xgboost(ti):
+
+    # Retrieve the processed data path.
+    processed_path = ti.xcom_pull(
+        task_ids="preprocess_data",
+        key="return_value"
+    )
+
+    # Load the time series data.
+    df = pd.read_csv(
+        processed_path,
+        parse_dates=["observation_date"],
+        index_col="observation_date"
+    ).asfreq("MS")
+
+    # Run XGBoost backtesting.
+    results = xgboost_rolling_backtest(df)
+
+    # Save the evaluation results.
+    output_path = "/opt/airflow/data/xgboost_backtest_results.csv"
+    results.to_csv(output_path, index=False)
+
+    # Return the output file path.
+    return output_path
+    
+
 
 # 3. DAG YAPILANDIRMASI
 with DAG(
@@ -189,7 +218,11 @@ with DAG(
         task_id ="backtest_statistical_models",
         python_callable =backtest_Statistical_models
     )
-
+    # Define the XGBoost backtesting task.
+    xgboost_task = PythonOperator(
+        task_id="backtest_xgboost",
+        python_callable=backtest_xgboost
+    )
     # Görevlerin çalışma sırasını belirliyoruz.
     extract_task >> validate_task >> preprocess_task 
-    preprocess_task >> [feature_task,backtest_task]
+    preprocess_task >> [feature_task, backtest_task, xgboost_task]
