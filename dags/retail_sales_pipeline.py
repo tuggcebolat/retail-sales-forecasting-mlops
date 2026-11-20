@@ -32,6 +32,8 @@ from src.models.backtesting import compare_models_backtest
 from src.models.xgboost_backtesting import xgboost_rolling_backtest
 
 from src.models.model_selection import compare_and_select_models
+
+from src.models.model_training import train_selected_model
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -106,6 +108,27 @@ def preprocess_data(ti):
 
     # Dosya yolunu XCom ile gönderiyoruz.
     return output_path
+
+def train_best_model(ti):
+
+    # Retrieve the selected model's name.
+    best_model = ti.xcom_pull(task_ids="compare_models")
+
+    # Retrieve the preprocessed data path.
+    processed_path = ti.xcom_pull(task_ids="preprocess_data")
+
+    # Load historical sales data.
+    df = pd.read_csv(
+        processed_path,
+        parse_dates=["observation_date"],
+        index_col="observation_date"
+    ).asfreq("MS")
+
+    # Train the selected model.
+    model = train_selected_model(df, best_model)
+
+    print(f"Successfully trained: {best_model}")
+    
 def feature_engineering_data(ti):
 
     # XCom üzerinden işlenmiş verinin yolunu alıyoruz.
@@ -257,7 +280,12 @@ with DAG(
        task_id="compare_models",
        python_callable=compare_models
     )
+    # Define the automatic model training task.
+    training_task = PythonOperator(
+       task_id="train_best_model",
+       python_callable=train_best_model
+    )
      # Görevlerin çalışma sırasını belirliyoruz.
     extract_task >> validate_task >> preprocess_task
     preprocess_task >> [feature_task, backtest_task, xgboost_task]
-    [backtest_task, xgboost_task] >> comparison_task
+    [backtest_task, xgboost_task] >> comparison_task >> training_task
