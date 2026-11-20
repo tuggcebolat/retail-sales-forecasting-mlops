@@ -34,6 +34,8 @@ from src.models.xgboost_backtesting import xgboost_rolling_backtest
 from src.models.model_selection import compare_and_select_models
 
 from src.models.model_training import train_selected_model
+
+from src.models.experiment_tracking import log_all_models
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -225,6 +227,7 @@ def compare_models(ti):
 
     # Compare models and select the best one.
     summary, best_model = compare_and_select_models(df)
+    log_all_models(summary)
 
     # Save the model comparison results.
     summary.to_csv(
