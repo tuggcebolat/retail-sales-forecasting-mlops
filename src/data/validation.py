@@ -40,7 +40,7 @@ def validate_sales_data(df:pd.DataFrame) -> pd.DataFrame:
         raise ValueError("Tarih sütununda tekrarlanan değerler var")
     
     #Tarihleri kronolojik sıraya göre sıralıyoruz.
-    df.sort_values(by="observation_date").copy()
+    df= df.sort_values(by="observation_date").copy()
     
     #Beklenen aylık tarih aralığını kontrol ediyoruz.
     expected_dates =pd.date_range(

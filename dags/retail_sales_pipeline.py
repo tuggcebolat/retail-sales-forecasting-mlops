@@ -36,6 +36,17 @@ from src.models.model_selection import compare_and_select_models
 from src.models.model_training import train_selected_model
 
 from src.models.experiment_tracking import log_all_models
+
+# Eğitilmiş modeli dosyaya kaydetmek için.
+from src.models.model_persistence import save_selected_model
+# Model dosyasını MLflow'a göndermek için.
+from src.models.experiment_tracking import (
+    setup_experiment,
+    log_model_artifact
+)
+
+# MLflow deney çalışmasını başlatmak için.
+import mlflow
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -113,23 +124,49 @@ def preprocess_data(ti):
 
 def train_best_model(ti):
 
-    # Retrieve the selected model's name.
+    # Airflow XCom üzerinden en başarılı modelin ismini alıyoruz.
     best_model = ti.xcom_pull(task_ids="compare_models")
 
-    # Retrieve the preprocessed data path.
+    # İşlenmiş verinin dosya yolunu alıyoruz.
     processed_path = ti.xcom_pull(task_ids="preprocess_data")
 
-    # Load historical sales data.
+    # Model eğitimi için verimizi okuyoruz.
     df = pd.read_csv(
         processed_path,
         parse_dates=["observation_date"],
         index_col="observation_date"
     ).asfreq("MS")
 
-    # Train the selected model.
+    # En başarılı modeli tüm verilerle eğitiyoruz.
     model = train_selected_model(df, best_model)
 
-    print(f"Successfully trained: {best_model}")
+    # Model türüne uygun dosya uzantısını belirliyoruz.
+    extensions = {
+        "SARIMA": "pkl",
+        "XGBoost": "json",
+        "Seasonal Naive": "csv"
+    }
+
+    # Model dosyasını Airflow'un paylaşılan veri klasörüne kaydediyoruz.
+    file_path = f"/opt/airflow/data/model.{extensions[best_model]}"
+
+    # Eğitilmiş modeli dosyaya kaydediyoruz.
+    save_selected_model(model, best_model, file_path)
+
+    # MLflow deneyimizi seçiyoruz.
+    setup_experiment()
+
+    # Eğitilmiş model için yeni bir MLflow Run başlatıyoruz.
+    with mlflow.start_run(run_name=f"{best_model}-trained-model"):
+
+        # Eğitilen modelin ismini parametre olarak kaydediyoruz.
+        mlflow.log_param("model_name", best_model)
+
+        # Model dosyasını MLflow Artifact Store'a gönderiyoruz.
+        log_model_artifact(file_path)
+
+    # İşlemin tamamlandığını terminalde gösteriyoruz.
+    print(f"Model kaydedildi ve MLflow'a yüklendi: {best_model}")
     
 def feature_engineering_data(ti):
 

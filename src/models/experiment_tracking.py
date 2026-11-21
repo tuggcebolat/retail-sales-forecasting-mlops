@@ -36,3 +36,8 @@ def log_all_models(summary):
 
         # Sonuçları MLflow'a kaydediyoruz.
         log_model_metrics(row["model"], metrics)
+
+def log_model_artifact(file_path):
+
+    # Kaydedilen model dosyasını MLflow'a gönderiyoruz.
+    mlflow.log_artifact(file_path)
