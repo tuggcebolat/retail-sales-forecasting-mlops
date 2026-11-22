@@ -47,6 +47,9 @@ from src.models.experiment_tracking import (
 
 # MLflow deney çalışmasını başlatmak için.
 import mlflow
+
+# SARIMA modelini MLflow formatında kaydetmek için.
+from src.models.experiment_tracking import log_sarima_model
 # 1. VERİ ÇEKME
 def extract_data():
 
@@ -162,8 +165,13 @@ def train_best_model(ti):
         # Eğitilen modelin ismini parametre olarak kaydediyoruz.
         mlflow.log_param("model_name", best_model)
 
-        # Model dosyasını MLflow Artifact Store'a gönderiyoruz.
-        log_model_artifact(file_path)
+       # SARIMA seçildiyse MLflow model formatında kaydediyoruz.
+        if best_model == "SARIMA":
+         log_sarima_model(file_path)
+
+        # Diğer modelleri şimdilik dosya olarak kaydediyoruz.
+        else:
+         log_model_artifact(file_path)
 
     # İşlemin tamamlandığını terminalde gösteriyoruz.
     print(f"Model kaydedildi ve MLflow'a yüklendi: {best_model}")

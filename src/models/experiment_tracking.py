@@ -41,3 +41,23 @@ def log_model_artifact(file_path):
 
     # Kaydedilen model dosyasını MLflow'a gönderiyoruz.
     mlflow.log_artifact(file_path)
+
+def log_sarima_model(model_path):
+    # SARIMA modelimizi MLflow formatında kaydediyoruz.
+    from src.models.sarima_pyfunc import SARIMAForecastModel
+
+    # Eğitilmiş modeli MLflow'a yüklüyoruz.
+    model_info = mlflow.pyfunc.log_model(
+        artifact_path="model",
+        python_model=SARIMAForecastModel(),
+        artifacts={"sarima_model": model_path}
+    )
+
+    # MLflow'a yüklenen modeli Registry'ye kaydediyoruz.
+    model_version = mlflow.register_model(
+        model_uri=model_info.model_uri,
+        name="RetailSalesForecast"
+    )
+
+    # Oluşturulan sürüm numarasını gösteriyoruz.
+    print(f"Registry Version: {model_version.version}")
