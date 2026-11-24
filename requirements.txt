@@ -1,6 +1,5 @@
-
 # Data Analysis
-pandas
+pandas==2.3.3
 numpy
 matplotlib
 seaborn
@@ -12,9 +11,19 @@ requests
 scikit-learn
 statsmodels
 xgboost
+joblib==1.5.3
 
 # Experiment Tracking
-mlflow
+mlflow==2.19.0
+cloudpickle==2.2.1
+
+# Model Serving
+fastapi
+uvicorn
+pydantic
+
+# Frontend
+streamlit==1.67.0
 
 # Testing
 pytest
