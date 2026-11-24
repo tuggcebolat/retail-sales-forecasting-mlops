@@ -2,6 +2,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+import os
 # Sayfanın genel ayarlarını belirliyoruz.
 st.set_page_config(
     page_title="Retail Sales Forecasting",
@@ -25,8 +26,11 @@ steps = st.slider(
 # Kullanıcının seçtiği ay sayısını gösteriyoruz.
 st.write("Selected forecast period:", steps)
 
-# FastAPI tahmin endpoint'inin adresi.
-API_URL = "http://127.0.0.1:8000/predict"
+# Ortama göre FastAPI adresini belirliyoruz.
+API_URL = os.getenv(
+    "API_URL",
+    "http://127.0.0.1:8000/predict"
+)
 
 if st.button("Generate Forecast"):
 

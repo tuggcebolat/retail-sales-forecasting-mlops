@@ -6,13 +6,17 @@ from pydantic import BaseModel, Field
 # Veri işleme ve model yükleme kütüphaneleri.
 import pandas as pd
 import mlflow
+import os
 
+# Ortam değişkeninden MLflow adresini alıyoruz.
+MLFLOW_URI = os.getenv(
+    "MLFLOW_TRACKING_URI",
+    "http://localhost:5000"
+)
 
-# MLflow Tracking Server bağlantısını tanımlıyoruz.
-mlflow.set_tracking_uri("http://localhost:5000")
-
-# MLflow Model Registry bağlantısını tanımlıyoruz.
-mlflow.set_registry_uri("http://localhost:5000")
+# MLflow bağlantılarını yapılandırıyoruz.
+mlflow.set_tracking_uri(MLFLOW_URI)
+mlflow.set_registry_uri(MLFLOW_URI)
 
 # Champion alias'ına sahip modeli seçiyoruz.
 MODEL_URI = "models:/RetailSalesForecast@champion"

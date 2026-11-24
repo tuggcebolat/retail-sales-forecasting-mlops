@@ -18,16 +18,16 @@ class SARIMAForecastModel(mlflow.pyfunc.PythonModel):
         self.model = SARIMAXResults.load(model_path)
 
 #Kullanıcıdan gelen tahmin isteğini işliyoruz.
-def predict(self,context,model_input):
+    def predict(self,context,model_input):
     #Kullanıcının kaç aylık tahmin istediğini alıyoruz.
-    steps =int(model_input["steps"].iloc[0])
+        steps =int(model_input["steps"].iloc[0])
     
     #Geçersiz tahmin süresini engelliyoruz.
-    if steps < 1:
-        raise ValueError("Tahmin süresi en az 1 ay olmalıdır.")
+        if steps < 1:
+          raise ValueError("Tahmin süresi en az 1 ay olmalıdır.")
     
     #Eğitilmiş SARIMA modeliyle tahmin üretiyoruz.
-    forecast = self.model.forecast(steps=steps)
+        forecast = self.model.forecast(steps=steps)
     
     #Tahminleri tablo formatında döndürüyoruz.
-    return forecast.to_frame(name="predicted_sales")
+        return forecast.to_frame(name="predicted_sales")

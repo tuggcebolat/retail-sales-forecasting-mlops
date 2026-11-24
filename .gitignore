@@ -35,3 +35,11 @@ mlartifacts/
 
 # Airflow tarafından oluşturulan çalışma kayıtlarını GitHub'a yükleme.
 airflow_logs/
+
+# Local trained model artifact
+/sarima.pkl
+
+# Generated data and model artifacts
+/data/*.csv
+/data/*.pkl
+/sarima.pkl
