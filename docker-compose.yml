@@ -184,9 +184,46 @@ services:
       - api
     restart: unless-stopped
 
+  prometheus:
+    # Hazır Prometheus imajını kullanıyoruz.
+    image: prom/prometheus:v3.5.0
+
+    # Container ismini belirliyoruz.
+    container_name: retail_prometheus
+
+    # Prometheus arayüzüne erişim sağlıyoruz.
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+      # Metrikleri kalıcı olarak saklıyoruz.
+      - prometheus_data:/prometheus
+
+  grafana:
+    # Grafana'nın belirli bir sürümünü kullanıyoruz.
+    image: grafana/grafana:12.1.0
+
+    # Container ismini belirliyoruz.
+    container_name: retail_grafana
+
+    # Grafana arayüzüne yerel erişim sağlıyoruz.
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    # Dashboard ve ayarlarımızı kalıcı olarak saklıyoruz.
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+    # Önce Prometheus servisinin başlatılmasını sağlıyoruz.
+    depends_on:
+      - prometheus
+
 # ==========================================
 # 5. PERSISTENT STORAGE
 # ==========================================
 volumes:
   postgres_data:
   mlflow_data:
+  prometheus_data:
+  grafana_data:

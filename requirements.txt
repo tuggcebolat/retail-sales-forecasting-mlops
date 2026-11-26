@@ -34,3 +34,5 @@ python-dotenv
 # Notebook
 jupyter
 ipykernel
+
+prometheus-fastapi-instrumentator

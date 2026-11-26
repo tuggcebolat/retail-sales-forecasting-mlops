@@ -8,6 +8,9 @@ import pandas as pd
 import mlflow
 import os
 
+# API metriklerini ölçmek için kullanıyoruz.
+from prometheus_fastapi_instrumentator import Instrumentator
+
 # Ortam değişkeninden MLflow adresini alıyoruz.
 MLFLOW_URI = os.getenv(
     "MLFLOW_TRACKING_URI",
@@ -30,6 +33,8 @@ app = FastAPI(
     title="Retail Sales Forecasting API",
     version="1.0.0"
 )
+# API metriklerini ölçüyor ve /metrics endpoint'ini oluşturuyoruz.
+Instrumentator().instrument(app).expose(app)
 
 
 # API'nin çalışıp çalışmadığını kontrol ediyoruz.

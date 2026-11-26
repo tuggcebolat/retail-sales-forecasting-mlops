@@ -1,0 +1,15 @@
+# Genel Prometheus ayarları.
+global:
+  # Her 15 saniyede bir metrik topluyoruz.
+  scrape_interval: 15s
+
+# Metrik toplanacak uygulamaları belirliyoruz.
+scrape_configs:
+  - job_name: 'retail-api'
+
+    # Metriklerin bulunduğu endpoint.
+    metrics_path: '/metrics'
+
+    # FastAPI servisinin Docker ağındaki adresi.
+    static_configs:
+      - targets: ['api:8000']
