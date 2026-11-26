@@ -1,0 +1,34 @@
+# Workflow'un adını belirliyoruz.
+name: Retail Sales Forecasting CI
+
+# Workflow'un ne zaman çalışacağını belirliyoruz.
+on:
+  push:
+    branches: [main]
+
+  pull_request:
+    branches: [main]
+
+# Çalıştırılacak görevleri tanımlıyoruz.
+jobs:
+  test:
+    # Görevimizi Linux ortamında çalıştırıyoruz.
+    runs-on: ubuntu-latest
+
+    steps:
+      # Proje dosyalarını Runner ortamına aktarıyoruz.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Python çalışma ortamını hazırlıyoruz.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # Projenin ihtiyaç duyduğu kütüphaneleri kuruyoruz.
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Unit ve integration testlerini çalıştırıyoruz.
+      - name: Run tests
+        run: python -m pytest tests/unit tests/integration -v
