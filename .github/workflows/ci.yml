@@ -32,3 +32,15 @@ jobs:
       # Unit ve integration testlerini çalıştırıyoruz.
       - name: Run tests
         run: python -m pytest tests/unit tests/integration -v
+
+      # FastAPI Docker imajını oluşturuyoruz.
+      - name: Build API image
+        run: docker build -f api/Dockerfile -t retail-api:ci .
+
+      # Streamlit Docker imajını oluşturuyoruz.
+      - name: Build frontend image
+        run: docker build -f frontend/Dockerfile -t retail-frontend:ci .
+
+      # Airflow Docker imajını oluşturuyoruz.
+      - name: Build Airflow image
+        run: docker build -f Dockerfile -t retail-airflow:ci .
