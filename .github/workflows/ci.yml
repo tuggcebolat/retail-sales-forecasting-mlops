@@ -57,27 +57,29 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      # API imajını etiketliyoruz.
-      - name: Tag API image
-        if: github.event_name == 'push'
-        run: docker tag retail-api:ci ghcr.io/tuggcebolat/retail-api:latest
-
-      # API imajını registry'ye gönderiyoruz.
+      # API imajını versiyonlayıp yayınlıyoruz.
       - name: Push API image
         if: github.event_name == 'push'
-        run: docker push ghcr.io/tuggcebolat/retail-api:latest
+        run: |
+          docker tag retail-api:ci ghcr.io/tuggcebolat/retail-api:latest
+          docker tag retail-api:ci ghcr.io/tuggcebolat/retail-api:${{ github.sha }}
+          docker push ghcr.io/tuggcebolat/retail-api:latest
+          docker push ghcr.io/tuggcebolat/retail-api:${{ github.sha }}
 
-      # Streamlit imajını etiketleyip yayınlıyoruz.
+      # Frontend imajını versiyonlayıp yayınlıyoruz.
       - name: Push frontend image
         if: github.event_name == 'push'
         run: |
           docker tag retail-frontend:ci ghcr.io/tuggcebolat/retail-frontend:latest
+          docker tag retail-frontend:ci ghcr.io/tuggcebolat/retail-frontend:${{ github.sha }}
           docker push ghcr.io/tuggcebolat/retail-frontend:latest
+          docker push ghcr.io/tuggcebolat/retail-frontend:${{ github.sha }}
 
-      # Airflow imajını etiketleyip yayınlıyoruz.
+      # Airflow imajını versiyonlayıp yayınlıyoruz.
       - name: Push Airflow image
         if: github.event_name == 'push'
         run: |
           docker tag retail-airflow:ci ghcr.io/tuggcebolat/retail-airflow:latest
+          docker tag retail-airflow:ci ghcr.io/tuggcebolat/retail-airflow:${{ github.sha }}
           docker push ghcr.io/tuggcebolat/retail-airflow:latest
+          docker push ghcr.io/tuggcebolat/retail-airflow:${{ github.sha }}
