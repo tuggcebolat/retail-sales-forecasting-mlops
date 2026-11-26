@@ -8,6 +8,10 @@ on:
 
   pull_request:
     branches: [main]
+# GitHub Actions erişim izinlerini belirliyoruz.
+permissions:
+  contents: read
+  packages: write
 
 # Çalıştırılacak görevleri tanımlıyoruz.
 jobs:
@@ -44,3 +48,22 @@ jobs:
       # Airflow Docker imajını oluşturuyoruz.
       - name: Build Airflow image
         run: docker build -f Dockerfile -t retail-airflow:ci .
+
+      # GitHub Container Registry'ye giriş yapıyoruz.
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # API imajını etiketliyoruz.
+      - name: Tag API image
+        if: github.event_name == 'push'
+        run: docker tag retail-api:ci ghcr.io/tuggcebolat/retail-api:latest
+
+      # API imajını registry'ye gönderiyoruz.
+      - name: Push API image
+        if: github.event_name == 'push'
+        run: docker push ghcr.io/tuggcebolat/retail-api:latest
