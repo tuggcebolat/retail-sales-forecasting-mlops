@@ -67,3 +67,17 @@ jobs:
       - name: Push API image
         if: github.event_name == 'push'
         run: docker push ghcr.io/tuggcebolat/retail-api:latest
+
+      # Streamlit imajını etiketleyip yayınlıyoruz.
+      - name: Push frontend image
+        if: github.event_name == 'push'
+        run: |
+          docker tag retail-frontend:ci ghcr.io/tuggcebolat/retail-frontend:latest
+          docker push ghcr.io/tuggcebolat/retail-frontend:latest
+
+      # Airflow imajını etiketleyip yayınlıyoruz.
+      - name: Push Airflow image
+        if: github.event_name == 'push'
+        run: |
+          docker tag retail-airflow:ci ghcr.io/tuggcebolat/retail-airflow:latest
+          docker push ghcr.io/tuggcebolat/retail-airflow:latest
