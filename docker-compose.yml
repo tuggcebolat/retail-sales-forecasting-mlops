@@ -1,18 +1,18 @@
+
 services:
 
   # ==========================================
   # 1. POSTGRESQL - METADATA DATABASE
   # ==========================================
   postgres:
-    # Use PostgreSQL as the Airflow metadata database.
     image: postgres:16
-
     container_name: retail_airflow_postgres
 
+    # Read database credentials from the .env file.
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
 
     # Persist database records.
     volumes:
@@ -20,30 +20,30 @@ services:
 
     # Check whether PostgreSQL is ready.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 5
 
     restart: unless-stopped
 
-
   # ==========================================
   # 2. AIRFLOW INIT
   # ==========================================
   airflow-init:
-    # Build and use our custom Docker image.
     build: .
     image: retail-airflow:latest
-
     container_name: retail_airflow_init
 
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
 
-    # Wait until PostgreSQL is ready.
+      # Read admin credentials from the .env file.
+      AIRFLOW_ADMIN_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,41 +54,35 @@ services:
       - -c
       - |
         airflow db migrate &&
-        (airflow users list | grep -q 'admin' ||
+        (airflow users list | grep -Fq -- "$${AIRFLOW_ADMIN_USERNAME}" ||
         airflow users create \
-          --username admin \
+          --username "$${AIRFLOW_ADMIN_USERNAME}" \
           --firstname Admin \
           --lastname User \
           --role Admin \
           --email admin@example.com \
-          --password admin)
+          --password "$${AIRFLOW_ADMIN_PASSWORD}")
 
     restart: "no"
-
 
   # ==========================================
   # 3. AIRFLOW WEBSERVER
   # ==========================================
   airflow-webserver:
-    # Use our custom Docker image.
     build: .
     image: retail-airflow:latest
-
     container_name: retail_airflow_webserver
 
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-
-      # Allow Python to locate our project modules.
       PYTHONPATH: /opt/airflow
 
-    # Expose the web interface locally.
+    # Restrict access to the local machine.
     ports:
       - "127.0.0.1:8080:8080"
 
-    # Share local directories with the container.
     volumes:
       - ./dags:/opt/airflow/dags
       - ./airflow_logs:/opt/airflow/logs
@@ -100,28 +94,22 @@ services:
         condition: service_completed_successfully
 
     command: webserver
-
     restart: unless-stopped
-
 
   # ==========================================
   # 4. AIRFLOW SCHEDULER
   # ==========================================
   airflow-scheduler:
-    # Use our custom Docker image.
     build: .
     image: retail-airflow:latest
-
     container_name: retail_airflow_scheduler
 
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-
       PYTHONPATH: /opt/airflow
 
-    # Mount project directories.
     volumes:
       - ./dags:/opt/airflow/dags
       - ./airflow_logs:/opt/airflow/logs
@@ -134,16 +122,21 @@ services:
 
     # Schedule and execute Airflow tasks.
     command: scheduler
-
     restart: unless-stopped
-    
+
+  # ==========================================
+  # 5. MLFLOW - EXPERIMENT TRACKING AND REGISTRY
+  # ==========================================
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.19.0
     container_name: retail_mlflow
+
     ports:
       - "127.0.0.1:5000:5000"
+
     volumes:
       - mlflow_data:/mlflow
+
     command: >
       mlflow server
       --host 0.0.0.0
@@ -151,76 +144,90 @@ services:
       --backend-store-uri sqlite:////mlflow/mlflow.db
       --serve-artifacts
       --artifacts-destination /mlflow/artifacts
+
     restart: unless-stopped
+
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ==========================================
+  # 6. FASTAPI - MODEL SERVING
+  # ==========================================
   api:
     build:
       context: .
       dockerfile: api/Dockerfile
+
     container_name: retail_api
+
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
+
     ports:
       - "127.0.0.1:8000:8000"
+
     depends_on:
       mlflow:
         condition: service_healthy
+
     restart: unless-stopped
+
+  # ==========================================
+  # 7. STREAMLIT - FRONTEND
+  # ==========================================
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+
     container_name: retail_frontend
+
     environment:
       API_URL: http://api:8000/predict
+
     ports:
       - "127.0.0.1:8501:8501"
+
     depends_on:
       - api
+
     restart: unless-stopped
 
+  # ==========================================
+  # 8. PROMETHEUS - METRICS COLLECTION
+  # ==========================================
   prometheus:
-    # Hazır Prometheus imajını kullanıyoruz.
     image: prom/prometheus:v3.5.0
-
-    # Container ismini belirliyoruz.
     container_name: retail_prometheus
 
-    # Prometheus arayüzüne erişim sağlıyoruz.
     ports:
       - "127.0.0.1:9090:9090"
+
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-
-      # Metrikleri kalıcı olarak saklıyoruz.
       - prometheus_data:/prometheus
 
+  # ==========================================
+  # 9. GRAFANA - MONITORING AND ALERTING
+  # ==========================================
   grafana:
-    # Grafana'nın belirli bir sürümünü kullanıyoruz.
     image: grafana/grafana:12.1.0
-
-    # Container ismini belirliyoruz.
     container_name: retail_grafana
 
-    # Grafana arayüzüne yerel erişim sağlıyoruz.
     ports:
       - "127.0.0.1:3000:3000"
 
-    # Dashboard ve ayarlarımızı kalıcı olarak saklıyoruz.
     volumes:
       - grafana_data:/var/lib/grafana
 
-    # Önce Prometheus servisinin başlatılmasını sağlıyoruz.
     depends_on:
       - prometheus
 
 # ==========================================
-# 5. PERSISTENT STORAGE
+# 10. PERSISTENT STORAGE
 # ==========================================
 volumes:
   postgres_data:
