@@ -167,4 +167,13 @@ The setup sequence reflects the implemented architecture; a clean-machine bootst
 
 ## Data attribution
 
-Source: Federal Reserve Bank of St. Louis, FRED. Raw datasets and trained artifacts are not distributed with this repository. Consult the underlying series' source and usage terms before redistributing data.
+- **Original data provider:** U.S. Census Bureau
+- **Data platform:** Federal Reserve Bank of St. Louis (FRED)
+- **Dataset:** Retail Sales: Electronic Shopping and Mail-Order Houses
+- **Series ID:** MRTSSM4541USN
+- **Frequency:** Monthly
+- **Units:** Millions of U.S. Dollars
+- **Seasonal adjustment:** Not Seasonally Adjusted
+- **Source:** https://fred.stlouisfed.org/series/MRTSSM4541USN
+
+Raw datasets and trained model artifacts are not distributed with this repository. Users should consult the original data provider's terms and FRED's usage policies before redistributing data.
